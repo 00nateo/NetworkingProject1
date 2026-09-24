@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"time"
+	"strings"
 
 )
 
@@ -16,6 +17,10 @@ func handleConnection (conn net.Conn){
 		if err != nil{
 			fmt.Println("Error reading ", err)
 			return
+		}
+		msg := strings.TrimSpace(string(buffer[:n]))
+		if msg == "Hello" {
+			conn.Write([]byte("Hello to you!\n"))
 		}
 		fmt.Printf("Recieved:: %s", buffer[:n])
 		conn.Write([]byte("Message recieved\n"))
@@ -31,13 +36,13 @@ func main(){
 	//keep solving expressions until BYE then close the connection
 	//once closed it will respond with the secret flag
 	//submit code and secret flag
-	listener, err := net.Listen("tcp", ":8080")
+	listener, err := net.Listen("tcp", ":27993")
 	if err != nil {
 		fmt.Println("Error listening: ", err)
 		return
 	}
 	defer listener.Close()
-	fmt.Println("Server running on :8080")
+	fmt.Println("Server running on :27993")
 	for {
 		conn, err := listener.Accept()
 		if err != nil{
@@ -46,7 +51,7 @@ func main(){
 		}
 		go handleConnection(conn)//one goroutine thread per connection
 	}
-	fmt.Println("Hello world")
+//	fmt.Println("Hello world")
 }
 /*Once the socket is connected, the client sends a HELLO message to the
 server. The format of the HELLO message is:
