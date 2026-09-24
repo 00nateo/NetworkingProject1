@@ -23,6 +23,14 @@ func handleConnection (conn net.Conn){
 
 }
 func main(){
+	//Connect to socket sprinter2.cs.vt.edu
+	//Handle server replying with a STATUS message
+	//in the STATUS message, extract the maht expression
+	//solve math expression
+	//expect response of SOLUTION or another STATUS or BYE
+	//keep solving expressions until BYE then close the connection
+	//once closed it will respond with the secret flag
+	//submit code and secret flag
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		fmt.Println("Error listening: ", err)
