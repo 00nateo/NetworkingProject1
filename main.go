@@ -51,7 +51,7 @@ func handleConnection (conn net.Conn){
 				continue
 
 			}
-			fmt.Printf("answer is %d", ans)
+			fmt.Printf("answer is %d\n", ans)
 		}
 		fmt.Printf("Recieved:: %s", buffer[:n])
 		conn.Write([]byte("Message recieved\n"))
