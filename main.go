@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"net"
 	"time"
 	"strconv"
@@ -66,7 +67,37 @@ func isNum(s string) bool {
 	}
 	return true
 }
+func createConnection(port string , hostname string){
+	// portStr := strconv.Itoa(port)
+	host := hostname + ":" + port
 
+	conn, err := net.Dial("tcp", host)
+	if err != nil {
+		fmt.Println("Error", err)
+		os.Exit(1)
+	}
+
+	defer conn.Close()
+
+	message := "Test Message"
+	_, err2 := conn.Write([]byte(message))
+	
+	if err2 != nil{
+		fmt.Println("Error", err)
+		os.Exit(1)
+	}
+
+	buffer := make([]byte, 1024)
+	n, err := conn.Read(buffer)
+	if err != nil {
+		fmt.Println("Error", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("Recieved from server: %s\n", string(buffer[:n]))
+
+
+}
 func main(){
 	//Connect to socket sprinter2.cs.vt.edu
 	//Handle server replying with a STATUS message
@@ -76,6 +107,24 @@ func main(){
 	//keep solving expressions until BYE then close the connection
 	//once closed it will respond with the secret flag
 	//submit code and secret flag
+	args := os.Args[1:]
+	length := len(args)
+	fmt.Println(length)
+	if length != 4{
+		fmt.Println("Usage: [-p port] <hostname> <VT Username>")
+		os.Exit(1)
+	}
+	fmt.Println(length)
+	fmt.Println("Args[0]: ", args[0])
+	fmt.Println("Args[1]: ", args[1])
+	fmt.Println("Args[2]: ", args[2])
+	fmt.Println("Args[3]: ", args[3])
+	port := args[1]
+	hostname := args[2]
+	// vtUsername := args[3]
+	createConnection(port, hostname)
+	//Usage: /simpleclient [-p port] <hostname> <VT Username>
+
 	listener, err := net.Listen("tcp", ":27993")
 	if err != nil {
 		fmt.Println("Error listening: ", err)
