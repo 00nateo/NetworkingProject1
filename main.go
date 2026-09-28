@@ -10,38 +10,44 @@ import (
 )
 
 func handleConnection (conn net.Conn){
-	defer conn.Close()
 	conn.SetReadDeadline(time.Now().Add(10*time.Second))
-	buffer := make([]byte, 256)
 	for {
+		buffer := make([]byte, 256)
 		n, err := conn.Read(buffer)
+		fmt.Printf("Recieved: %s\n", buffer[:n])
 		if err != nil{
 			fmt.Println("Error reading ", err)
-			return
+			os.Exit(1)
 		}
+
 		msg := strings.TrimSpace(string(buffer[:n]))
-		if msg == "Hello" {
-			conn.Write([]byte("Hello to you!\n"))
-		}
-		if !strings.HasSuffix(msg, "\n"){
-			conn.Write([]byte(string("no new line error \n")))
-			//conn.Close()
-		}
+		// if msg == "Hello" {
+		// 	conn.Write([]byte("Hello to you!\n"))
+		// }
+		// if !strings.HasSuffix(msg, "\n"){
+		// 	conn.Write([]byte(string("no new line error \n")))
+		// 	//conn.Close()
+		// }
 		body := strings.TrimSuffix(msg, "\n")
 		segments := strings.Split(body, " ")
-		if len(segments) != 5 || segments[0] != "cs4254fall2026" || segments[1]!= "STATUS" {
-			conn.Write([]byte(string("segment errors \n")))
-			//conn.Close()
-
+		if segments[1] == "BYE"{
+			conn.Close()
+			break;
 		}
-		if isNum(segments[2]) && isNum(segments[4]){
+		// if len(segments) != 5 || segments[0] != "cs4254fall2026" || segments[1]!= "STATUS" {
+		// 	conn.Write([]byte(string("segment errors \n")))
+		// 	//conn.Close()
+		//
+		// }
+		ans := 0
+		if segments[1] == "STATUS" && isNum(segments[2]) && isNum(segments[4]){
 			a, errA := strconv.Atoi(segments[2])
 			b, errB := strconv.Atoi(segments[4])
 			if errA != nil || errB != nil {
    				conn.Write([]byte("bad number\n"))
    				continue
 			}
-			var ans int
+			// var ans int
 			switch segments[3]{
 				case "+": ans = a + b
 				case "-": ans = a - b
@@ -54,8 +60,16 @@ func handleConnection (conn net.Conn){
 			}
 			fmt.Printf("answer is %d\n", ans)
 		}
-		fmt.Printf("Recieved:: %s", buffer[:n])
-		conn.Write([]byte("Message recieved\n"))
+
+		fmt.Println("Sending SOLUTION")
+		message := "cs4254fall2026 " + strconv.Itoa(ans) + "\n"
+		fmt.Println("%s\n", message)
+		_, err2 := conn.Write([]byte(message))
+		if err2 != nil{
+			fmt.Println("Error", err)
+			os.Exit(1)
+		}
+
 	}
 
 }
@@ -67,34 +81,49 @@ func isNum(s string) bool {
 	}
 	return true
 }
-func createConnection(port string , hostname string){
+func createConnection(port string , hostname string, pid string){
 	// portStr := strconv.Itoa(port)
 	host := hostname + ":" + port
 
+	fmt.Printf("Host: %s\n",host)
+	fmt.Println("Attempting to connect...")
 	conn, err := net.Dial("tcp", host)
 	if err != nil {
 		fmt.Println("Error", err)
 		os.Exit(1)
 	}
 
-	defer conn.Close()
 
-	message := "Test Message"
+	fmt.Println("Sending hello message...")
+	message := "cs4254fall2026 HELLO " + pid + "\n"
 	_, err2 := conn.Write([]byte(message))
 	
 	if err2 != nil{
 		fmt.Println("Error", err)
 		os.Exit(1)
 	}
-
-	buffer := make([]byte, 1024)
-	n, err := conn.Read(buffer)
-	if err != nil {
-		fmt.Println("Error", err)
-		os.Exit(1)
+	for{
+		handleConnection(conn)
 	}
 
-	fmt.Printf("Recieved from server: %s\n", string(buffer[:n]))
+
+	// fmt.Println("Attempting to read")
+	// buffer := make([]byte, 1024)
+	// n, err := conn.Read(buffer)
+	// if err != nil {
+	// 	fmt.Println("Error", err)
+	// 	os.Exit(1)
+	// }
+	//
+	// strings := strings.Fields(string(buffer[:n]))
+	// for i := 0;i<5;i++{
+	// 	fmt.Print( strings[i])
+	// 	fmt.Print(" ")
+	// }
+	// //TODO
+	// // calculate()
+	//
+	// fmt.Printf("\nRecieved from server: %s\n", string(buffer[:n]))
 
 
 }
@@ -109,37 +138,35 @@ func main(){
 	//submit code and secret flag
 	args := os.Args[1:]
 	length := len(args)
-	fmt.Println(length)
 	if length != 4{
 		fmt.Println("Usage: [-p port] <hostname> <VT Username>")
 		os.Exit(1)
 	}
-	fmt.Println(length)
 	fmt.Println("Args[0]: ", args[0])
 	fmt.Println("Args[1]: ", args[1])
 	fmt.Println("Args[2]: ", args[2])
 	fmt.Println("Args[3]: ", args[3])
 	port := args[1]
 	hostname := args[2]
-	// vtUsername := args[3]
-	createConnection(port, hostname)
+	pid := args[3]
+	createConnection(port, hostname, pid)
 	//Usage: /simpleclient [-p port] <hostname> <VT Username>
 
-	listener, err := net.Listen("tcp", ":27993")
-	if err != nil {
-		fmt.Println("Error listening: ", err)
-		return
-	}
-	defer listener.Close()
-	fmt.Println("Server running on :27993")
-	for {
-		conn, err := listener.Accept()
-		if err != nil{
-			fmt.Println("Error accepting:", err)
-			continue
-		}
-		go handleConnection(conn)//one goroutine thread per connection
-	}
+	// listener, err := net.Listen("tcp", ":27993")
+	// if err != nil {
+	// 	fmt.Println("Error listening: ", err)
+	// 	return
+	// }
+	// defer listener.Close()
+	// fmt.Println("Server running on :27993")
+	// for {
+	// 	conn, err := listener.Accept()
+	// 	if err != nil{
+	// 		fmt.Println("Error accepting:", err)
+	// 		continue
+	// 	}
+	// 	go handleConnection(conn)//one goroutine thread per connection
+	// }
 //	fmt.Println("Hello world")
 }
 /*Once the socket is connected, the client sends a HELLO message to the
