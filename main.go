@@ -10,7 +10,7 @@ import (
 )
 
 func handleConnection (conn net.Conn){
-	conn.SetReadDeadline(time.Now().Add(10*time.Second))
+	conn.SetReadDeadline(time.Now().Add(60*time.Second))
 	for {
 		buffer := make([]byte, 256)
 		n, err := conn.Read(buffer)
@@ -31,6 +31,7 @@ func handleConnection (conn net.Conn){
 		body := strings.TrimSuffix(msg, "\n")
 		segments := strings.Split(body, " ")
 		if segments[1] == "BYE"{
+			fmt.Println("closing")
 			conn.Close()
 			break;
 		}
@@ -63,7 +64,7 @@ func handleConnection (conn net.Conn){
 
 		fmt.Println("Sending SOLUTION")
 		message := "cs4254fall2026 " + strconv.Itoa(ans) + "\n"
-		fmt.Println("%s\n", message)
+		fmt.Printf("%s\n", message)
 		_, err2 := conn.Write([]byte(message))
 		if err2 != nil{
 			fmt.Println("Error", err)
@@ -82,7 +83,6 @@ func isNum(s string) bool {
 	return true
 }
 func createConnection(port string , hostname string, pid string){
-	// portStr := strconv.Itoa(port)
 	host := hostname + ":" + port
 
 	fmt.Printf("Host: %s\n",host)
@@ -102,28 +102,9 @@ func createConnection(port string , hostname string, pid string){
 		fmt.Println("Error", err)
 		os.Exit(1)
 	}
-	for{
-		handleConnection(conn)
-	}
 
+	handleConnection(conn)
 
-	// fmt.Println("Attempting to read")
-	// buffer := make([]byte, 1024)
-	// n, err := conn.Read(buffer)
-	// if err != nil {
-	// 	fmt.Println("Error", err)
-	// 	os.Exit(1)
-	// }
-	//
-	// strings := strings.Fields(string(buffer[:n]))
-	// for i := 0;i<5;i++{
-	// 	fmt.Print( strings[i])
-	// 	fmt.Print(" ")
-	// }
-	// //TODO
-	// // calculate()
-	//
-	// fmt.Printf("\nRecieved from server: %s\n", string(buffer[:n]))
 
 
 }
@@ -169,30 +150,3 @@ func main(){
 	// }
 //	fmt.Println("Hello world")
 }
-/*Once the socket is connected, the client sends a HELLO message to the
-server. The format of the HELLO message is:
-cs4254fall2026 HELLO [your VT username]\n
-In your program you should replace [your VT username] with your actual VT Username. You
-must supply your VT Username so the server can look up the appropriate secret flag for you. The
-server will reply with a STATUS message. The format of the STATUS message is:
-1
-cs4254fall2026 STATUS [a number] [a math operator] [another number]\n
-The three variable fields represent a simple mathematical expression, e.g., "5 + 10". The server
-may return plus, minus, multiplication, or division expressions. All numbers will be between 1 and
-1000. Your program must solve the mathematical expression and return the answer to the server
-in a SOLUTION message. The SOLUTION message has the following format:
-cs4254fall2026 [the solution]\n
-It is okay for the solution to be negative. In the case of division, round the answer down to the
-nearest integer (do not send floating point numbers to the server).
-The server will respond to the SOLUTION message with either another STATUS message, or
-a BYE message. If the server terminates the connection, that means your solution was incorrect.
-If the server sends another STATUS message, your program must solve the expression and return
-another SOLUTION message. The server will ask your program to solve hundreds of expressions;
-the exact number of expressions is chosen at random. Eventually, the server will return a BYE
-message. The BYE message has the following format:
-cs4254fall2026 [a 64 byte secret flag] BYE\n
-Once your program has received the BYE message, it can close the connection to the server. If
-the server returns "Unknown_VT_Username" in the BYE message, that means it did not recognize
-the VT Username that you supplied in the HELLO message. Otherwise, the 64-byte string is your
-secret flag: write this value down, since you need to turn it in along with your code.
-*/
