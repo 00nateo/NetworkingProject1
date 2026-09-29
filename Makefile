@@ -3,7 +3,7 @@
 BINARY := simpleclient
 
 # Group number used in the submission tarball name (override on the command line).
-GROUP ?= N
+GROUP ?= 1
 
 # Files that go into the final submission tarball.
 SUBMIT_FILES := main.go go.mod Makefile README secret_flags
