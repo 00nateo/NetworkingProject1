@@ -2,3 +2,8 @@
 ./Project1-1.pdf
 ./client
 ./simpleclient
+# git ignores patterns that start with "./", so these are the working forms
+/Project1-1.pdf
+/client
+/simpleclient
+*.tar.gz

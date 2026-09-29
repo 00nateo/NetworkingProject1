@@ -1,3 +1,13 @@
+//Project 1: Basic Network Programming
+//Usage: ./simpleclient [-p port] <hostname> <VT Username>
+//
+//Connects to the project server over TCP with default port 27993, sends a
+//HELLO message with the given VT username, then keeps answering STATUS
+//messages with simple math expressions with SOLUTION messages until the
+//server sends BYE. The only thing printed to stdout on success is the
+//64-byte secret flag from the BYE message. Errors including a malformed
+//or unexpected server message goes to stderr and exits with status 1.
+
 package main
 
 import (
@@ -8,15 +18,24 @@ import (
 	"strings"
 )
 
+// handleConnection reads STATUS messages, sends back SOLUTIONs, and
+// prints the secret flag when BYE arrives. Exits on any malformed message.
 func handleConnection (conn net.Conn){
 	// conn.SetReadDeadline(time.Now().Add(60*time.Second))
 	for {
 		//create buffer and read connection from connection
 		buffer := make([]byte, 256)
 		n, err := conn.Read(buffer)
-		fmt.Printf("Recieved: %s", buffer[:n])
+		// fmt.Printf("Recieved: %s", buffer[:n])   // spec: only print the flag
 		if err != nil{
 			fmt.Println("Error reading ", err)
+			os.Exit(1)
+		}
+
+		// every message must end in '\n' within 256 bytes
+		//if not it's too long or malformed
+		if n == 0 || buffer[n-1] != '\n' {
+			fmt.Fprintln(os.Stderr, "Error: message over 256 bytes or missing newline")
 			os.Exit(1)
 		}
 
@@ -35,14 +54,22 @@ func handleConnection (conn net.Conn){
 				fmt.Fprintln(os.Stderr, "Error: Unknown Vt User")
 				os.Exit(1)
 			}
-			fmt.Printf("Final secret flag: %s\n", segments[1])
+			// flag must be exactly 64 bytes
+			if len(segments[1]) != 64 {
+				fmt.Fprintln(os.Stderr, "Error: secret flag is not 64 bytes")
+				os.Exit(1)
+			}
+			// fmt.Printf("Final secret flag: %s\n", segments[1])
+			fmt.Println(segments[1])  
 			conn.Close()
 			break;
 		}
 
 		ans := 0
 		// check STATUS and parse arguments to complete calculation
-		if segments[1] == "STATUS" && 
+		// len check added first so a short message can't cause an index out of range panic
+		if len(segments) == 5 &&
+				segments[1] == "STATUS" &&
 				isNum(segments[2]) &&
 				isNum(segments[4]) &&
 				segments[0] == "cs4254fall2026" {
@@ -50,27 +77,37 @@ func handleConnection (conn net.Conn){
 			b, errB := strconv.Atoi(segments[4])
 			// handle strconv.Atoi return possibilities (num or err)
 			if errA != nil || errB != nil {
-   				conn.Write([]byte("NAN in message\n"))
-   				continue
+   				// continue
+   				fmt.Fprintln(os.Stderr, "Error: NAN in message")
+   				os.Exit(1)
+			}
+			// all numbers are between 1 and 1000 (also means no divide by zero)
+			if a < 1 || a > 1000 || b < 1 || b > 1000 {
+				fmt.Fprintln(os.Stderr, "Error: number out of range 1-1000")
+				os.Exit(1)
 			}
 			// do specified calculation
 			switch segments[3]{
 				case "+": ans = a + b
 				case "-": ans = a - b
 				case "*": ans = a * b
-				case "/": ans = a / b
-			default: 
-				conn.Write([]byte("Operator not one of +, -, *, /\n"))
-				continue
+				case "/": ans = a / b   // both positive, so this rounds down
+			default:
+				fmt.Fprintln(os.Stderr, "Error: Operator not one of +, -, *, /")
+				os.Exit(1)
 			}
-			fmt.Printf("Calculated answer is %d\n", ans)
+			// fmt.Printf("Calculated answer is %d\n", ans)
+		} else {
+			// not a valid STATUS or BYE, so exit instead of sending an answer of 0
+			fmt.Fprintln(os.Stderr, "Error: malformed message")
+			os.Exit(1)
 		}
 		//print ans
 		message := "cs4254fall2026 " + strconv.Itoa(ans) + "\n"
-		fmt.Printf("Sending: %s\n", message)
+		// fmt.Printf("Sending: %s\n", message)
 		_, err2 := conn.Write([]byte(message))
 		if err2 != nil{
-			fmt.Println("Error", err)
+			fmt.Println("Error", err2)
 			os.Exit(1)
 		}
 
@@ -90,7 +127,7 @@ func isNum(s string) bool {
 //Takes in port number, hostname, and VT pid
 func createConnection(port string , hostname string, pid string){
 	host := hostname + ":" + port
-	fmt.Println("Attempting to connect...")
+	// fmt.Println("Attempting to connect...")   
 
 	conn, err := net.Dial("tcp", host)
 	if err != nil {
@@ -99,12 +136,13 @@ func createConnection(port string , hostname string, pid string){
 	}
 
 
-	fmt.Println("Sending hello message...")
+	// fmt.Println("Sending hello message...")
 	message := "cs4254fall2026 HELLO " + pid + "\n"
 	_, err2 := conn.Write([]byte(message))
-	
+
 	if err2 != nil{
-		fmt.Println("Error", err)
+		// fmt.Println("Error", err)
+		fmt.Println("Error", err2)
 		os.Exit(1)
 	}
 
@@ -114,7 +152,7 @@ func createConnection(port string , hostname string, pid string){
 
 //Connect to socket sprinter(2/3).cs.vt.edu
 //Handle server replying with a STATUS message
-//in the STATUS message, extract the maht expression
+//in the STATUS message, extract the math expression
 //solve math expression
 //expect response of SOLUTION or another STATUS or BYE
 //keep solving expressions until BYE then close the connection
@@ -140,6 +178,8 @@ func main(){
 		pid := args[1]
 		createConnection(port, hostname, pid)
 	} else {
+		// 4 args but first isn't -p
+		fmt.Println("Usage: [-p (optional) port] <hostname> <VT Username>")
 		os.Exit(1)
 	}
 }

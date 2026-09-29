@@ -1,0 +1,65 @@
+CS4254 Fall 2026 - Project 1: Basic Network Programming
+
+Group members: Nate Obcemea (nateo) Denis Melara (denismel)
+
+Language: Go (standard library only: fmt, os, net, strconv, strings)
+
+Build:  make            (produces ./simpleclient) Run:    ./simpleclient [-p
+(optional) port] <hostname> <VT Username> e.g. ./simpleclient -p 27993
+sprinter2.cs.vt.edu <VT PID>
+
+
+High-Level Approach The client is one Go program:
+
+1. main() parses the command line. It takes either "-p <port> <hostname>
+<username>" or "<hostname> <username>", with a default port of 27993. 
+2.createConnection() opens a TCP socket to host:port with net.Dial and sends
+"cs4254fall2026 HELLO <username>\n". 
+3. handleConnection() loops: read one message from the server, check it strictly, and respond.
+ - STATUS "cs4254fall2026 STATUS a op b": compute a op b (integer math;
+   division rounds down) and send "cs4254fall2026 <answer>\n".
+ - BYE "cs4254fall2026 <flag> BYE": print the 64-byte flag as the only line
+   on stdout, close the socket, and exit.
+ - Anything else: print an error and exit with status 1.
+Messages are read with conn.Read into a 256-byte buffer. A message that doesn't
+end in '\n' within those 256 bytes is rejected as too long.
+
+
+Challenges Faced
+- Message length: the project description caps messages at 256 bytes, so we
+  check that each read ends in '\n' inside the 256-byte buffer.
+- Validation: our first version trimmed whitespace, and it sent a default
+  answer when a message didn't match. The project description says to reject
+  anything that doesn't match the format exactly, so we added checks for field
+  count, prefix, message type, number format and range, operator, and flag
+  length.
+- Output rules: the project description allows exactly one line of output (the
+  flag),so we had to remove our debug prints.
+- Avoiding crashes: an early version indexed segments[] before checking the
+  field count, so a short message caused it to crash but now the length is now
+  checked before any indexing.
+- Building on rlogin: we lowered the go.mod version and set GOTOOLCHAIN=local
+  so the build uses the Go installed on rlogin and never tries to download a
+  toolchain.
+
+
+Properties / Features of the Design
+- Defensive parsing: every received message is checked in full before it is
+  used it ends the program with a clear error.
+- Enforces the 256-byte message limit on received messages.
+- Clean output: on success the only output is the flag. On failure the program
+  prints an error and exits with a non-zero code.
+- Safe arithmetic: operands are checked to be 1-1000, so dividing by zero is
+  impossible and multiplication can't overflow.
+- No dependencies beyond the Go standard library. A static binary
+  (CGO_ENABLED=0) with no IDE files.
+- Every function has a header comment. Old code is left in as comments where it
+  was changed.
+
+
+Testing Overview 
+- Real server: ran the client against sprinter2.cs.vt.edu and
+  sprinter3.cs.vt.edu from rlogin, with and without -p 27993. Each run printed
+  exactly one line (checked with "| wc -l"), and the flag matched secret_flags.
+- Command-line checks: no arguments, the wrong number of arguments, and a bad
+  flag ("-x") each print the usage line and exit 1.
