@@ -14,7 +14,7 @@ func handleConnection (conn net.Conn){
 	for {
 		buffer := make([]byte, 256)
 		n, err := conn.Read(buffer)
-		fmt.Printf("Recieved: %s\n", buffer[:n])
+	//	fmt.Printf("Recieved: %s\n", buffer[:n])
 		if err != nil{
 			fmt.Println("Error reading ", err)
 			os.Exit(1)
@@ -30,8 +30,16 @@ func handleConnection (conn net.Conn){
 		// }
 		body := strings.TrimSuffix(msg, "\n")
 		segments := strings.Split(body, " ")
-		if segments[1] == "BYE"{
-			fmt.Println("closing")
+		if len(segments) == 3 && segments[2] == "BYE"{
+			if (segments[0] != "cs4254fall2026"){
+				fmt.Fprintln(os.Stderr, "Error: Unknown Prefix")
+				os.Exit(1)
+			}
+			if (segments[1] == "Unknown_VT_Username"){
+				fmt.Fprintln(os.Stderr, "Error: Unknown Vt User")
+				os.Exit(1)
+			}
+			fmt.Println(segments[1])
 			conn.Close()
 			break;
 		}
@@ -41,7 +49,7 @@ func handleConnection (conn net.Conn){
 		//
 		// }
 		ans := 0
-		if segments[1] == "STATUS" && isNum(segments[2]) && isNum(segments[4]){
+		if segments[1] == "STATUS" && isNum(segments[2]) && isNum(segments[4]) && segments[0] == "cs4254fall2026" {
 			a, errA := strconv.Atoi(segments[2])
 			b, errB := strconv.Atoi(segments[4])
 			if errA != nil || errB != nil {
@@ -86,7 +94,7 @@ func createConnection(port string , hostname string, pid string){
 	host := hostname + ":" + port
 
 	fmt.Printf("Host: %s\n",host)
-	fmt.Println("Attempting to connect...")
+//	fmt.Println("Attempting to connect...")
 	conn, err := net.Dial("tcp", host)
 	if err != nil {
 		fmt.Println("Error", err)
@@ -94,7 +102,7 @@ func createConnection(port string , hostname string, pid string){
 	}
 
 
-	fmt.Println("Sending hello message...")
+	//fmt.Println("Sending hello message...")
 	message := "cs4254fall2026 HELLO " + pid + "\n"
 	_, err2 := conn.Write([]byte(message))
 	
@@ -119,18 +127,27 @@ func main(){
 	//submit code and secret flag
 	args := os.Args[1:]
 	length := len(args)
-	if length != 4{
-		fmt.Println("Usage: [-p port] <hostname> <VT Username>")
+	if length != 4 && length != 2{
+		fmt.Println("Usage: [-p (optional) port] <hostname> <VT Username>")
 		os.Exit(1)
 	}
-	fmt.Println("Args[0]: ", args[0])
-	fmt.Println("Args[1]: ", args[1])
-	fmt.Println("Args[2]: ", args[2])
-	fmt.Println("Args[3]: ", args[3])
-	port := args[1]
-	hostname := args[2]
-	pid := args[3]
-	createConnection(port, hostname, pid)
+//	fmt.Println("Args[0]: ", args[0])
+//	fmt.Println("Args[1]: ", args[1])
+//	fmt.Println("Args[2]: ", args[2])
+//	fmt.Println("Args[3]: ", args[3])
+	if (length == 4 && args[0] == "-p"){
+		port := args[1]
+		hostname := args[2]
+		pid := args[3]
+		createConnection(port, hostname, pid)
+	} else if (length == 2){
+		port :="27993"
+		hostname := args[0]
+		pid := args[1]
+		createConnection(port, hostname, pid)
+	} else {
+		os.Exit(1)
+	}
 	//Usage: /simpleclient [-p port] <hostname> <VT Username>
 
 	// listener, err := net.Listen("tcp", ":27993")
