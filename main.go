@@ -10,69 +10,64 @@ import (
 )
 
 func handleConnection (conn net.Conn){
-	conn.SetReadDeadline(time.Now().Add(60*time.Second))
+	// conn.SetReadDeadline(time.Now().Add(60*time.Second))
 	for {
+		//create buffer and read connection from connection
 		buffer := make([]byte, 256)
 		n, err := conn.Read(buffer)
-	//	fmt.Printf("Recieved: %s\n", buffer[:n])
+		fmt.Printf("Recieved: %s", buffer[:n])
 		if err != nil{
 			fmt.Println("Error reading ", err)
 			os.Exit(1)
 		}
 
+		//Parse the message
 		msg := strings.TrimSpace(string(buffer[:n]))
-		// if msg == "Hello" {
-		// 	conn.Write([]byte("Hello to you!\n"))
-		// }
-		// if !strings.HasSuffix(msg, "\n"){
-		// 	conn.Write([]byte(string("no new line error \n")))
-		// 	//conn.Close()
-		// }
 		body := strings.TrimSuffix(msg, "\n")
 		segments := strings.Split(body, " ")
+
+		//check for BYE message (last message)
 		if len(segments) == 3 && segments[2] == "BYE"{
 			if (segments[0] != "cs4254fall2026"){
-				fmt.Fprintln(os.Stderr, "Error: Unknown Prefix")
+				fmt.Fprintln(os.Stderr, "Error: Unknown Message Type")
 				os.Exit(1)
 			}
 			if (segments[1] == "Unknown_VT_Username"){
 				fmt.Fprintln(os.Stderr, "Error: Unknown Vt User")
 				os.Exit(1)
 			}
-			fmt.Println(segments[1])
+			fmt.Printf("Final secret flag: %s\n", segments[1])
 			conn.Close()
 			break;
 		}
-		// if len(segments) != 5 || segments[0] != "cs4254fall2026" || segments[1]!= "STATUS" {
-		// 	conn.Write([]byte(string("segment errors \n")))
-		// 	//conn.Close()
-		//
-		// }
+
 		ans := 0
-		if segments[1] == "STATUS" && isNum(segments[2]) && isNum(segments[4]) && segments[0] == "cs4254fall2026" {
+		if segments[1] == "STATUS" && 
+				isNum(segments[2]) &&
+				isNum(segments[4]) &&
+				segments[0] == "cs4254fall2026" {
 			a, errA := strconv.Atoi(segments[2])
 			b, errB := strconv.Atoi(segments[4])
+
 			if errA != nil || errB != nil {
-   				conn.Write([]byte("bad number\n"))
+   				conn.Write([]byte("NAN in message\n"))
    				continue
 			}
-			// var ans int
+
 			switch segments[3]{
 				case "+": ans = a + b
 				case "-": ans = a - b
 				case "*": ans = a * b
 				case "/": ans = a / b
 			default: 
-				conn.Write([]byte("bad operator\n"))
+				conn.Write([]byte("Operator not one of +, -, *, /\n"))
 				continue
-
 			}
-			fmt.Printf("answer is %d\n", ans)
+			fmt.Printf("Calculated answer is %d\n", ans)
 		}
 
-		fmt.Println("Sending SOLUTION")
 		message := "cs4254fall2026 " + strconv.Itoa(ans) + "\n"
-		fmt.Printf("%s\n", message)
+		fmt.Printf("Sending: %s\n", message)
 		_, err2 := conn.Write([]byte(message))
 		if err2 != nil{
 			fmt.Println("Error", err)
@@ -90,11 +85,13 @@ func isNum(s string) bool {
 	}
 	return true
 }
+
+//creates initial TCP connection and sends HELLO message
+//Takes in port number, hostname, and VT pid
 func createConnection(port string , hostname string, pid string){
 	host := hostname + ":" + port
+	fmt.Println("Attempting to connect...")
 
-	fmt.Printf("Host: %s\n",host)
-//	fmt.Println("Attempting to connect...")
 	conn, err := net.Dial("tcp", host)
 	if err != nil {
 		fmt.Println("Error", err)
@@ -102,7 +99,7 @@ func createConnection(port string , hostname string, pid string){
 	}
 
 
-	//fmt.Println("Sending hello message...")
+	fmt.Println("Sending hello message...")
 	message := "cs4254fall2026 HELLO " + pid + "\n"
 	_, err2 := conn.Write([]byte(message))
 	
@@ -113,28 +110,25 @@ func createConnection(port string , hostname string, pid string){
 
 	handleConnection(conn)
 
-
-
 }
+
+//Connect to socket sprinter(2/3).cs.vt.edu
+//Handle server replying with a STATUS message
+//in the STATUS message, extract the maht expression
+//solve math expression
+//expect response of SOLUTION or another STATUS or BYE
+//keep solving expressions until BYE then close the connection
+//once closed it will respond with the secret flag
+//submit code and secret flag
 func main(){
-	//Connect to socket sprinter2.cs.vt.edu
-	//Handle server replying with a STATUS message
-	//in the STATUS message, extract the maht expression
-	//solve math expression
-	//expect response of SOLUTION or another STATUS or BYE
-	//keep solving expressions until BYE then close the connection
-	//once closed it will respond with the secret flag
-	//submit code and secret flag
 	args := os.Args[1:]
 	length := len(args)
 	if length != 4 && length != 2{
 		fmt.Println("Usage: [-p (optional) port] <hostname> <VT Username>")
 		os.Exit(1)
 	}
-//	fmt.Println("Args[0]: ", args[0])
-//	fmt.Println("Args[1]: ", args[1])
-//	fmt.Println("Args[2]: ", args[2])
-//	fmt.Println("Args[3]: ", args[3])
+
+	//optional -p port param. Default port: 27993
 	if (length == 4 && args[0] == "-p"){
 		port := args[1]
 		hostname := args[2]
@@ -148,22 +142,4 @@ func main(){
 	} else {
 		os.Exit(1)
 	}
-	//Usage: /simpleclient [-p port] <hostname> <VT Username>
-
-	// listener, err := net.Listen("tcp", ":27993")
-	// if err != nil {
-	// 	fmt.Println("Error listening: ", err)
-	// 	return
-	// }
-	// defer listener.Close()
-	// fmt.Println("Server running on :27993")
-	// for {
-	// 	conn, err := listener.Accept()
-	// 	if err != nil{
-	// 		fmt.Println("Error accepting:", err)
-	// 		continue
-	// 	}
-	// 	go handleConnection(conn)//one goroutine thread per connection
-	// }
-//	fmt.Println("Hello world")
 }
