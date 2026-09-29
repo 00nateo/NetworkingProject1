@@ -41,18 +41,19 @@ func handleConnection (conn net.Conn){
 		}
 
 		ans := 0
+		// check STATUS and parse arguments to complete calculation
 		if segments[1] == "STATUS" && 
 				isNum(segments[2]) &&
 				isNum(segments[4]) &&
 				segments[0] == "cs4254fall2026" {
 			a, errA := strconv.Atoi(segments[2])
 			b, errB := strconv.Atoi(segments[4])
-
+			// handle strconv.Atoi return possibilities (num or err)
 			if errA != nil || errB != nil {
    				conn.Write([]byte("NAN in message\n"))
    				continue
 			}
-
+			// do specified calculation
 			switch segments[3]{
 				case "+": ans = a + b
 				case "-": ans = a - b
@@ -64,7 +65,7 @@ func handleConnection (conn net.Conn){
 			}
 			fmt.Printf("Calculated answer is %d\n", ans)
 		}
-
+		//print ans
 		message := "cs4254fall2026 " + strconv.Itoa(ans) + "\n"
 		fmt.Printf("Sending: %s\n", message)
 		_, err2 := conn.Write([]byte(message))
@@ -76,7 +77,7 @@ func handleConnection (conn net.Conn){
 	}
 
 }
-
+// return true if given string is comprised of integers between 0 and 9, ie 123 is 1, 2 and 3
 func isNum(s string) bool {
 	if s == "" {return false}
 	for _, c := range s {
